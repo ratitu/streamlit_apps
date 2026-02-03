@@ -1,0 +1,12 @@
+streamlit
+numpy
+xarray
+netCDF4
+s3fs
+boto3
+matplotlib
+pillow
+# Add geospatial packages only if your script imports them:
+# cartopy
+# pyproj
+# shapely
