@@ -1,4 +1,5 @@
 streamlit
+geemap
 ee
 pandas
 numpy
