@@ -1,0 +1,7 @@
+streamlit
+pandas
+numpy
+boto3
+netCDF4
+matplotlib
+s3fs
