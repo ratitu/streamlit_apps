@@ -4,17 +4,61 @@ import geemap
 from datetime import date, datetime, time, timedelta
 import tempfile
 import os
+import json
 
 st.set_page_config(layout="wide")
 st.title("GOES Fire Timelapse App")
 
 # Initialize Earth Engine
-# geemap.ee_initialize() is not suitable for Streamlit, use ee.Initialize()
-try:
-    ee.Initialize(project="ee-passeionamatamapas")
-except Exception as e:
-    ee.Authenticate()
-    ee.Initialize(project="ee-passeionamatamapas")
+# On Streamlit Cloud we cannot run interactive OAuth. Use a service account stored in st.secrets.
+def initialize_ee():
+    # Expect these secrets to be set on Streamlit Cloud:
+    # - GEE_SERVICE_ACCOUNT : service-account-email@PROJECT.iam.gserviceaccount.com
+    # - GEE_PRIVATE_KEY : the full JSON key contents (the private key file) as a multiline string
+    # - (optional) GEE_PROJECT : GCP project id (defaults to ee-passeionamatamapas)
+    project = st.secrets.get("GEE_PROJECT", "ee-passeionamatamapas")
+
+    if "GEE_SERVICE_ACCOUNT" in st.secrets and "GEE_PRIVATE_KEY" in st.secrets:
+        sa_email = st.secrets["GEE_SERVICE_ACCOUNT"]
+        sa_key_json = st.secrets["GEE_PRIVATE_KEY"]
+
+        # Write the JSON key to a temporary file (EE expects a file path)
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        tmp.write(sa_key_json)
+        tmp.flush()
+        tmp.close()
+        key_path = tmp.name
+
+        try:
+            creds = ee.ServiceAccountCredentials(sa_email, key_path)
+            ee.Initialize(credentials=creds, project=project)
+            # remove key file after initialization for safety
+            try:
+                os.remove(key_path)
+            except Exception:
+                pass
+            return True
+        except Exception as e:
+            st.error(f"Failed to initialize Earth Engine with service account: {e}")
+            # keep the key file for debugging if needed; optionally remove it
+            return False
+    else:
+        # Local / development fallback to interactive auth (allows local testing)
+        try:
+            ee.Initialize(project=project)
+            return True
+        except Exception:
+            st.warning("Interactive Earth Engine authentication is required locally. You can also set a service account in Streamlit secrets for cloud runs.")
+            try:
+                ee.Authenticate()
+                ee.Initialize(project=project)
+                return True
+            except Exception as e:
+                st.error(f"Earth Engine authentication failed: {e}")
+                return False
+
+if not initialize_ee():
+    st.stop()
 
 # Define the region for South America
 region = ee.Geometry.BBox(-85.0, -56.0, -34.0, 13.0)
