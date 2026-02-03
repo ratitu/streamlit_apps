@@ -1,4 +1,5 @@
 streamlit
+gcloud
 geemap
 ee
 pandas
